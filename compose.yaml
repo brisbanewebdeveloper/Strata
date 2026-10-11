@@ -1,0 +1,43 @@
+# NVIDIA on Linux. Build on the host that will run the engine (native CPU kernels).
+services:
+  strata:
+    build:
+      context: .
+      args:
+        CUDA_ARCHITECTURES: "${STRATA_CUDA_ARCHITECTURES:-75;80;86;89;120}"
+        BUILD_VISION: "${STRATA_BUILD_VISION:-1}"
+    environment:
+      FAMILY: "${STRATA_FAMILY:-qwen}"
+      MODEL: "${STRATA_MODEL:-IQ2_XS}"
+      CONTEXT: "${STRATA_CONTEXT:-32768}"
+      VISION: "${STRATA_VISION:-no}"
+      HOST: "0.0.0.0"
+      PORT: "8080"
+      API_KEY: "${STRATA_API_KEY:?Set STRATA_API_KEY before starting Compose}"
+      GPU: "0"
+      KV: "${STRATA_KV:-}"
+      LOW_RAM: "${STRATA_LOW_RAM:-auto}"
+      KV_STREAMING: "${STRATA_KV_STREAMING:-}"
+      RESIDENT_BUDGET_GIB: "${STRATA_RESIDENT_BUDGET_GIB:-}"
+      REINSTALL: "${STRATA_REINSTALL:-0}"
+    ports:
+      - "127.0.0.1:${STRATA_PORT:-8080}:8080"
+    volumes:
+      - strata-data:/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${STRATA_GPU_DEVICE:-0}"]
+              capabilities: [gpu]
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    stop_grace_period: 60s
+    # Start explicitly after other GPU workloads release their models.
+    restart: "no"
+
+volumes:
+  strata-data:

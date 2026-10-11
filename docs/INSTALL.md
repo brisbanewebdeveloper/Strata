@@ -136,6 +136,82 @@ The same idea, in a container (NVIDIA cards).
    Docker's default 10 s; give it time, or `docker stop` kills it (exit 137):
    `docker run --stop-timeout 60 ...`, `docker stop -t 60 <name>`, or `stop_grace_period: 60s` in Compose.
 
+### Docker Compose
+
+The repository's `compose.yaml` uses the same NVIDIA image and entrypoint. Build on the machine that will run it: the image contains native CPU kernels. Compose needs the NVIDIA Container Toolkit and driver described above. The host port binds to `127.0.0.1`; the server listens inside the container on `0.0.0.0` with a required API key.
+
+Choose a long random key in your password manager, then enter it at the hidden prompt. From the repository root, start the default Qwen IQ2_XS model:
+
+```bash
+read -rsp 'Strata API key: ' STRATA_API_KEY
+export STRATA_API_KEY
+docker compose config --quiet
+docker compose up --build -d
+docker compose logs -f strata
+```
+
+Keep the key for your clients and later Compose commands; entering a new one does not change a model's saved key without reinstalling its settings. You can put the variables in a private environment file outside the repository and pass `docker compose --env-file /path/to/strata.env ...` instead. Do not commit keys.
+
+`STRATA_FAMILY`, `STRATA_MODEL`, `STRATA_CONTEXT`, `STRATA_VISION`, `STRATA_KV`, `STRATA_LOW_RAM`, `STRATA_KV_STREAMING` and `STRATA_RESIDENT_BUDGET_GIB` map to the entrypoint's existing settings. `STRATA_PORT` changes the host port; `STRATA_GPU_DEVICE` selects the host GPU (default `0`, exposed inside as GPU `0`). `STRATA_CUDA_ARCHITECTURES=89` builds for an RTX 4090 only; `STRATA_BUILD_VISION=0` skips the image encoder. Rebuild when changing build settings. No container RAM cap is imposed; if you add one, read the low-RAM guidance above.
+
+Settings are saved on the `strata-data` volume. To change an installed model's context, vision, KV settings or API key, recreate it once with `STRATA_REINSTALL=1`, then leave that variable unset for ordinary starts:
+
+```bash
+STRATA_CONTEXT=163840 STRATA_REINSTALL=1 docker compose up -d --force-recreate
+```
+
+Keep your chosen settings in your environment file for later starts. Verify the server from another terminal, with the same key exported there:
+
+```bash
+curl -fsS http://127.0.0.1:8080/health
+curl -fsS http://127.0.0.1:8080/v1/chat/completions \
+  --oauth2-bearer "$STRATA_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"strata","messages":[{"role":"user","content":"Say hello in five words."}],"reasoning_effort":"none","max_tokens":64}'
+```
+
+If you change `STRATA_PORT`, use that host port in the URLs. The image's health check tests HTTP availability; `/health` also reports `loaded`, which can be false after intentional unloading. First-time downloads can outlast the health check's startup period: watch the logs rather than restarting a download because the container is marked unhealthy.
+
+Use `docker compose stop strata` to stop serving, or `docker compose down` to remove the container and network. Both retain data; `down -v` deletes the Compose-managed data volumes.
+
+### Huihui Swift IQ3_XXS with Compose
+
+`compose.huihui.yaml` uses the abliterated Swift IQ3_XXS files from [huihui-ai/Huihui-Qwen3.8-Flash-Next-abliterated-GGUF](https://huggingface.co/huihui-ai/Huihui-Qwen3.8-Flash-Next-abliterated-GGUF/tree/main/swift-IQ3_XXS). It defaults to RTX 4090 CUDA architecture `89`, text only and 163,840 tokens of context. Override `STRATA_CUDA_ARCHITECTURES` for another card. Both shards total 75.97 GB; allow additional disk space for the image, pack and MTP draft layer. Release other models' VRAM and allow enough free system RAM before loading.
+
+Download both shards from the same pinned revision:
+
+```bash
+mkdir -p models/huihui-swift-iq3_xxs
+huihui_base='https://huggingface.co/huihui-ai/Huihui-Qwen3.8-Flash-Next-abliterated-GGUF/resolve/4fdf4dc4d85184e2a51f5d33d7373ce053b3ec60/swift-IQ3_XXS'
+for shard in 00001 00002; do
+  filename="Swift-Qwen3.8-Flash-Next-GSQ-RCO-IQ3_XXS-${shard}-of-00002.gguf"
+  curl --fail --location --retry 5 --continue-at - \
+    --output "models/huihui-swift-iq3_xxs/$filename" "$huihui_base/$filename" || break
+done
+sha256sum models/huihui-swift-iq3_xxs/*.gguf
+```
+
+Compare both hashes against the published SHA-256 values on the [pinned revision's file pages](https://huggingface.co/huihui-ai/Huihui-Qwen3.8-Flash-Next-abliterated-GGUF/tree/4fdf4dc4d85184e2a51f5d33d7373ce053b3ec60/swift-IQ3_XXS) before continuing. Repeating the download resumes partial files. For files already on another SSD, set `STRATA_GGUF_DIR` to their absolute folder path instead.
+
+With `STRATA_API_KEY` set as above:
+
+```bash
+docker compose -f compose.yaml -f compose.huihui.yaml config --quiet
+docker compose -f compose.yaml -f compose.huihui.yaml up --build -d
+docker compose -f compose.yaml -f compose.huihui.yaml logs -f strata
+```
+
+The override mounts the GGUF folder read-only at `/gguf`; a missing folder fails instead of creating an empty one. The existing entrypoint prepares its tokenizer and pack from those files with `FAMILY=swift`, `MODEL=IQ3_XXS` and `GGUF_DIR=/gguf`. No checksum bypass or source edit is needed. A separate `strata-huihui-data` volume avoids reusing a pack made from ordinary Swift weights. The original Qwen MTP draft head is downloaded separately; Huihui's speed and draft acceptance need measurement on your machine.
+
+Use both `-f` arguments on every Compose command for this model, including settings changes and shutdown:
+
+```bash
+docker compose -f compose.yaml -f compose.huihui.yaml stop strata
+docker compose -f compose.yaml -f compose.huihui.yaml down
+```
+
+Compose grants GPU access but does not unload ComfyUI or Ollama. Release their GPU models before starting Strata; stop Strata to return its memory, or use its [load/unload and idle-unload controls](DETAILS.md#sharing-the-gpu-with-other-programs-optional). Automatic restart is disabled so a host restart does not load Strata into another workload's GPU memory.
+
 ## Older CPUs (experimental)
 
 Strata's ready-made engine needs AVX2 (Intel Haswell 2013, AMD Zen 2017 or newer). Since 0.1.39 an older CPU - AVX

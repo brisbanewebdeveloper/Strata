@@ -1,0 +1,25 @@
+# Use with compose.yaml after downloading and verifying both Huihui Swift shards.
+services:
+  strata:
+    build:
+      args:
+        CUDA_ARCHITECTURES: "${STRATA_CUDA_ARCHITECTURES:-89}"
+        BUILD_VISION: "0"
+    environment:
+      FAMILY: swift
+      MODEL: IQ3_XXS
+      CONTEXT: "${STRATA_CONTEXT:-163840}"
+      VISION: "no"
+      GGUF_DIR: /gguf
+    volumes:
+      # Separate packs/configs from ordinary Swift weights with the same filenames.
+      - strata-huihui-data:/data
+      - type: bind
+        source: "${STRATA_GGUF_DIR:-./models/huihui-swift-iq3_xxs}"
+        target: /gguf
+        read_only: true
+        bind:
+          create_host_path: false
+
+volumes:
+  strata-huihui-data:
