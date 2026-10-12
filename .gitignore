@@ -60,4 +60,5 @@ build-vision-cuda12.bat
 .cursor/
 
 /.ccache/
+/.history/
 /.rocm-win/
