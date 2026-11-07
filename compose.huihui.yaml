@@ -5,13 +5,13 @@ services:
     build:
       args:
         CUDA_ARCHITECTURES: "${STRATA_CUDA_ARCHITECTURES:-89}"
-        BUILD_VISION: "0"
+        BUILD_VISION: "${STRATA_BUILD_VISION:-0}"
     environment:
       FAMILY: swift
       MODEL: IQ3_XXS
       CONTEXT: "${STRATA_CONTEXT:-163840}"
       PARALLEL: "1"
-      VISION: "no"
+      VISION: "${STRATA_VISION:-no}"
       GGUF_DIR: /gguf
       # Explicit launch values also replace older persisted engine overrides.
       STRATA_SET: "${STRATA_SET:-STRATA_NO_ARENA_THP=1} STRATA_UNBUFFERED_LOAD=1 resident-budget-gib=${STRATA_RESIDENT_BUDGET_GIB:-24} ram-keep-gib=${STRATA_RAM_KEEP_GIB:-8}"

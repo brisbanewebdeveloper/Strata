@@ -156,6 +156,18 @@ Mount the folder with the model's GGUF files read-only and name it: `-v /srv/ggu
 - Without `MODEL_PATH`, files you put into the volume by hand (`/data/Strata-data/models/<model folder>/`) are found as well, if they have the
   published names.
 
+### Huihui Swift source Compose deployment
+
+The root `compose.yaml` plus `compose.huihui.yaml` keep pictures off by default. To enable image understanding, set `STRATA_BUILD_VISION=1` and `STRATA_VISION=cpu` (or `gpu`) in the existing deployment environment, then rebuild and recreate the service with the same Compose project, model mount, volume, port, and API key. Both settings are needed: the first includes `strata-vision` in the image; the second asks the launcher to configure and load it. Changing `STRATA_BUILD_VISION` requires a rebuild. `cpu` keeps the encoder out of GPU memory, but still requires host RAM.
+
+```sh
+STRATA_COMMIT="$(git rev-parse HEAD)" STRATA_BUILD_VISION=1 STRATA_VISION=cpu docker compose -f compose.yaml -f compose.huihui.yaml up --build -d strata
+```
+
+Approve the rebuild, download, and restart before running this on an existing server. Setup reuses the model shards and fetches the Swift family's separate BF16 projector (about 0.91 GB) if it is missing. This does not replace the language model. The Huihui variant's image accuracy still needs a real image check; a compatible architecture alone does not prove it. Image generation is separate.
+
+After startup, check `/health`, `/v1/models`, a small image through `/v1/chat/completions`, and a text request with the existing key. Expect `images: true` and `image` in `architecture.input_modalities` only with the picture reader configured; metadata alone is not an image inference test. For OpenCode, use the served model ID from `/v1/models` and enable image input in its provider model settings if needed. A stale display label does not identify the loaded weights. To return to text only, recreate with `STRATA_VISION=off`; the encoder may remain built into the image.
+
 ## The API key
 
 The server listens on every address **inside** the container (that is what lets the published port work), and Strata does not

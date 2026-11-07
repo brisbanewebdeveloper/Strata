@@ -3,6 +3,9 @@ docs/DOCKER.md says they carry, and every setting the document lists is one the 
 from __future__ import annotations
 
 import ast
+import json
+import os
+import tempfile
 import re
 import shutil
 import subprocess
@@ -113,6 +116,32 @@ class Compose(unittest.TestCase):
         data = yaml.safe_load((DOCKER / "compose" / name).read_text(encoding="utf-8"))
         self.assertIn("strata", data["services"], name)
         return data
+
+    @unittest.skipIf(shutil.which("docker") is None, "needs Docker Compose CLI, no daemon")
+    def test_huihui_vision_can_be_enabled_without_changing_text_defaults(self):
+        # Resolve the real base + override with a clean environment, never the deployment's secrets.
+        for vision in (None, "cpu", "gpu", "off"):
+            with self.subTest(vision=vision), tempfile.TemporaryDirectory() as tmp:
+                env_file = Path(tmp) / "empty.env"
+                env_file.write_text("", encoding="utf-8")
+                env = {k: v for k, v in os.environ.items() if not k.startswith("STRATA_")}
+                env.update(STRATA_COMMIT="test", STRATA_API_KEY="test-only-placeholder")
+                if vision is not None:
+                    env.update(STRATA_VISION=vision, STRATA_BUILD_VISION="1")
+                result = subprocess.run(
+                    ["docker", "compose", "--env-file", str(env_file), "-f", str(ROOT / "compose.yaml"),
+                     "-f", str(ROOT / "compose.huihui.yaml"), "config", "--format", "json"],
+                    env=env, capture_output=True, text=True)
+                if "is not a docker command" in result.stderr:
+                    self.skipTest("needs Docker Compose plugin")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                svc = json.loads(result.stdout)["services"]["strata"]
+                self.assertEqual(svc["environment"]["VISION"], vision or "no")
+                self.assertEqual(svc["build"]["args"]["BUILD_VISION"], "1" if vision else "0")
+                self.assertEqual(svc["environment"]["FAMILY"], "swift")
+                self.assertEqual(svc["environment"]["MODEL"], "IQ3_XXS")
+                self.assertEqual(svc["environment"]["CONTEXT"], "163840")
+                self.assertEqual(svc["environment"]["API_KEY"], "test-only-placeholder")
 
     def test_common_settings(self):
         for name in ("docker-compose.nvidia.yml", "docker-compose.amd.yml", "docker-compose.intel.yml"):
