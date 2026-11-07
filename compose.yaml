@@ -23,7 +23,7 @@ services:
       RESIDENT_BUDGET_GIB: "${STRATA_RESIDENT_BUDGET_GIB:-}"
       REINSTALL: "${STRATA_REINSTALL:-0}"
     ports:
-      - "127.0.0.1:${STRATA_PORT:-8080}:8080"
+      - "${STRATA_BIND:-127.0.0.1}:${STRATA_PORT:-8080}:8080"
     volumes:
       - strata-data:/data
     deploy:
