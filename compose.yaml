@@ -9,6 +9,7 @@ services:
         CUDA_ARCHITECTURES: "${STRATA_CUDA_ARCHITECTURES:-75;80;86;89;120}"
         BUILD_VISION: "${STRATA_BUILD_VISION:-1}"
     environment:
+      STRATA_SET: "${STRATA_SET:-}"
       FAMILY: "${STRATA_FAMILY:-qwen}"
       MODEL: "${STRATA_MODEL:-IQ2_XS}"
       CONTEXT: "${STRATA_CONTEXT:-32768}"
