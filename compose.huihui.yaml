@@ -10,8 +10,14 @@ services:
       FAMILY: swift
       MODEL: IQ3_XXS
       CONTEXT: "${STRATA_CONTEXT:-163840}"
+      PARALLEL: "1"
       VISION: "no"
       GGUF_DIR: /gguf
+      # Explicit launch values also replace older persisted engine overrides.
+      STRATA_SET: "${STRATA_SET:-STRATA_NO_ARENA_THP=1} resident-budget-gib=${STRATA_RESIDENT_BUDGET_GIB:-32} ram-keep-gib=${STRATA_RAM_KEEP_GIB:-8}"
+    # Equal limits allow no additional container swap beyond the RAM allowance.
+    mem_limit: "${STRATA_HUIHUI_MEMORY_LIMIT:-48g}"
+    memswap_limit: "${STRATA_HUIHUI_MEMORY_LIMIT:-48g}"
     volumes:
       # Separate packs/configs from ordinary Swift weights with the same filenames.
       - strata-huihui-data:/data
