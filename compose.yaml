@@ -1,9 +1,11 @@
 # NVIDIA on Linux. Build on the host that will run the engine (native CPU kernels).
+# STRATA_COMMIT="$(git rev-parse HEAD)" docker compose -f compose.yaml -f compose.huihui.yaml up --build -d
 services:
   strata:
     build:
       context: .
       args:
+        STRATA_COMMIT: "${STRATA_COMMIT:?Set STRATA_COMMIT to the source Git commit}"
         CUDA_ARCHITECTURES: "${STRATA_CUDA_ARCHITECTURES:-75;80;86;89;120}"
         BUILD_VISION: "${STRATA_BUILD_VISION:-1}"
     environment:
