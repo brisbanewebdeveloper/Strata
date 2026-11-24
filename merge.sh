@@ -71,7 +71,23 @@ else
         fi
     done
 
-    git checkout "$source_branch" -- && git pull && git checkout "$target_branch" -- || exit $?
+    if [[ "$source_branch" == main && "$target_branch" == custom ]]; then
+        upstream_url=https://github.com/Niko1221/Strata
+        git fetch --no-tags "$upstream_url" refs/heads/main || exit $?
+
+        upstream_main=$(git rev-parse --verify 'FETCH_HEAD^{commit}') || exit $?
+        local_main=$(git rev-parse --verify refs/heads/main) || exit $?
+        if ! git merge-base --is-ancestor "$local_main" "$upstream_main"; then
+            printf '%s\n' 'Local main is ahead of or diverged from upstream main; refusing to sync custom.' >&2
+            exit 1
+        fi
+
+        git checkout "$source_branch" -- || exit $?
+        git merge --ff-only "$upstream_main" || exit $?
+        git checkout "$target_branch" -- || exit $?
+    else
+        git checkout "$source_branch" -- && git pull && git checkout "$target_branch" -- || exit $?
+    fi
 
     if git merge -- "$source_branch"; then
         exit 0
