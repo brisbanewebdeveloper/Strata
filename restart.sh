@@ -8,10 +8,6 @@ set -e
 
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
-# Keep OpenCode's LAN endpoint when restarting Inkling on the server.
-export STRATA_INKLING_BIND="${STRATA_INKLING_BIND:-192.168.0.1}"
-export STRATA_INKLING_PORT="${STRATA_INKLING_PORT:-38083}"
-
 build="${1:-}"
 
 # Validate before stopping the running service. Compose reads .env in this directory.
