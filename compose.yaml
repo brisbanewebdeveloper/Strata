@@ -4,6 +4,7 @@ services:
   strata:
     build:
       context: .
+      dockerfile: tools/docker/Dockerfile.src
       args:
         STRATA_COMMIT: "${STRATA_COMMIT:?Set STRATA_COMMIT to the source Git commit}"
         CUDA_ARCHITECTURES: "${STRATA_CUDA_ARCHITECTURES:-75;80;86;89;120}"
