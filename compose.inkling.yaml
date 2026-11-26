@@ -17,6 +17,7 @@ services:
     ports:
       - "${STRATA_INKLING_BIND:-127.0.0.1}:${STRATA_INKLING_PORT:-18080}:8080"
     environment:
+      API_KEY: "${STRATA_API_KEY:?Set STRATA_API_KEY before starting Compose}"
       FAMILY: inkling-2-mini
       MODEL: SQ-15
       MODEL_PATH: /models/Inkling-2-Mini-SQ-15-abliterated.strata
