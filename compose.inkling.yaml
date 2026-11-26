@@ -1,7 +1,9 @@
 # Standalone Strata setup for the verified Inkling 2 Mini SQ-15 files.
 # Download the files with bash tools/docker/download-inkling-sq15.sh first.
-# Optional: set STRATA_INKLING_MODELS_DIR, STRATA_INKLING_PORT, or
-# STRATA_INKLING_GPU_DEVICE.
+# Optional: set STRATA_INKLING_MODELS_DIR, STRATA_INKLING_PORT,
+# STRATA_INKLING_BIND, or STRATA_INKLING_GPU_DEVICE.
+# For direct LAN access, set STRATA_INKLING_BIND to the host's LAN IP and
+# STRATA_INKLING_PORT to the desired port.
 # Start: docker compose -f compose.inkling.yaml up -d
 # Stop:  docker compose -f compose.inkling.yaml down
 # Show the generated API key: docker exec strata-inkling strata launch --show-key --preset docker
@@ -13,7 +15,7 @@ services:
     container_name: strata-inkling
     restart: "no"
     ports:
-      - "127.0.0.1:${STRATA_INKLING_PORT:-18080}:8080"
+      - "${STRATA_INKLING_BIND:-127.0.0.1}:${STRATA_INKLING_PORT:-18080}:8080"
     environment:
       FAMILY: inkling-2-mini
       MODEL: SQ-15
